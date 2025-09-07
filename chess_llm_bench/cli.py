@@ -87,6 +87,10 @@ def run_model(
     max_items: Optional[int] = typer.Option(None, help="Limit to first N items"),
     # Use Annotated so the Python default is an int when called programmatically
     sleep_ms: Annotated[int, typer.Option(help="Sleep between requests (ms), helps with rate limits")]= 0,
+    reasoning_effort: Optional[str] = typer.Option(
+        None,
+        help="OpenAI only: reasoning effort (minimal|low|medium|high); uses Responses API when set",
+    ),
 ):
     """Run a vision-capable model over images and save JSONL predictions."""
     load_dotenv(override=True)
@@ -114,7 +118,13 @@ def run_model(
             img = Path(obj["image"]) if os.path.isabs(obj["image"]) else Path(obj["image"])  # relative
             try:
                 if provider.lower() == "openai":
-                    resp = call_openai(model=model, prompt=prompt, image_path=img, timeout=request_timeout)
+                    resp = call_openai(
+                        model=model,
+                        prompt=prompt,
+                        image_path=img,
+                        timeout=request_timeout,
+                        reasoning_effort=reasoning_effort,
+                    )
                 elif provider.lower() == "openrouter":
                     resp = call_openrouter(model=model, prompt=prompt, image_path=img, timeout=request_timeout)
                 else:
@@ -169,6 +179,10 @@ def bench(
     leaderboard_csv: Path = typer.Option(Path("runs/leaderboard.csv"), help="Append results here"),
     bootstrap: int = typer.Option(0, help="Bootstrap samples for CI (0 to skip)"),
     sleep_ms: int = typer.Option(0, help="Sleep between provider requests (ms), helps with rate limits"),
+    reasoning_effort: Optional[str] = typer.Option(
+        None,
+        help="OpenAI only: reasoning effort (minimal|low|medium|high); uses Responses API when set",
+    ),
 ):
     """Run a model then evaluate and append to leaderboard.csv."""
     # 1) Run model
@@ -182,6 +196,7 @@ def bench(
         request_timeout=request_timeout,
         max_items=max_items,
         sleep_ms=sleep_ms,
+        reasoning_effort=reasoning_effort,
     )
     # Find latest run file in out_dir
     preds_list = sorted(out_dir.glob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
@@ -217,10 +232,15 @@ def bench(
         pass
     import datetime as _dt
 
+    # Use an augmented model label in the leaderboard to reflect reasoning effort
+    model_label = model
+    if reasoning_effort:
+        model_label = f"{model} ({reasoning_effort})"
+
     with open(leaderboard_csv, "a", encoding="utf-8") as f:
         ts = _dt.datetime.now().isoformat(timespec="seconds")
         f.write(
-            f"{ts},{provider},{model},{truths},{n},{scores.acc64:.6f},{scores.hamming:.6f},{scores.mae_cp:.6f},{scores.composite:.6f},{latest},{n_fen_ok},{n_eval_ok}\n"
+            f"{ts},{provider},{model_label},{truths},{n},{scores.acc64:.6f},{scores.hamming:.6f},{scores.mae_cp:.6f},{scores.composite:.6f},{latest},{n_fen_ok},{n_eval_ok}\n"
         )
 
     # 4) Optionally compute bootstrap CI (printed only)

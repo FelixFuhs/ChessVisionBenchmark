@@ -1,0 +1,120 @@
+    style: str = typer.Option("seaborn-v0_8-darkgrid", help="Matplotlib style (e.g., 'ggplot')"),
+    label_mode: str = typer.Option("coverage", help="Y-labels: 'total', 'valid', or 'coverage'"),
+):
+    """Boxplots of per-run item metrics (Acc64 and abs eval error).
+
+    Sorts runs by Composite ascending using leaderboard.csv, then loads the
+    referenced run files to compute distributions.
+    """
+    import csv
+    try:
+        import matplotlib.pyplot as plt
+    except Exception:
+        print("[red]matplotlib not installed. Install with:[/red] pip install matplotlib")
+        raise typer.Exit(code=1)
+
+    rows = []
+    with open(leaderboard_csv, "r", encoding="utf-8") as f:
+        r = csv.DictReader(f)
+        for row in r:
+            rows.append(row)
+    if not rows:
+        print("[yellow]No rows found in leaderboard.[/yellow]")
+        raise typer.Exit()
+    try:
+        rows.sort(key=lambda x: float(x["composite"]))
+    except Exception:
+        pass
+
+    # Prepare labels and distributions
+    def short_model(full: str) -> str:
+        if "/" in full:
+            full = full.split("/", 1)[1]
+        return full
+
+    labels = [f"{row['provider']} • {short_model(row['model'])} (n={row['n']})" for row in rows]
+    from .metrics import evaluate_run_details as _erd
+    # Override labels to reflect requested label mode (valid-only, coverage, total)
+    def _label(row):
+        prov = row.get('provider', '')
+        m = short_model(row.get('model', ''))
+        try:
+            n = int(row.get('n', '0'))
+        except Exception:
+            n = 0
+        try:
+            n_f = int(row.get('n_valid_fen', '0'))
+            n_e = int(row.get('n_valid_eval', '0'))
+            n_valid = min(n_f, n_e)
+        except Exception:
+            n_valid = None
+        mode = (label_mode or 'coverage').lower()
+        if mode == 'valid' and n_valid is not None:
+            return f"{prov} | {m} (n={n_valid})"
+        if mode == 'coverage' and n_valid is not None and n:
+            return f"{prov} | {m} (n={n_valid}/{n})"
+        return f"{prov} | {m} (n={n})"
+    labels = [_label(row) for row in rows]
+    acc_lists = []
+    err_lists = []
+    for row in rows:
+        _, details = _erd(Path(row["dataset"]), Path(row["run_file"]))
+        acc_lists.append([d.acc64 for d in details])
+        err_lists.append([d.abs_err for d in details])
+
+    try:
+        plt.style.use(style)
+    except Exception:
+        plt.style.use("ggplot")
+    height = max(5, 0.6 * len(labels) + 1)
+    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(12, height))
+    axs[0].boxplot(acc_lists, vert=False, labels=labels, showfliers=False)
+    axs[0].set_xlim(0, 1)
+    axs[0].set_title("Acc64 per run")
+    axs[0].set_xlabel("Acc64")
+    axs[1].boxplot(err_lists, vert=False, labels=labels, showfliers=False)
+    axs[1].set_xlim(0, 1000)
+    axs[1].set_title("Abs eval error (cp) per run")
+    axs[1].set_xlabel("abs error (cp)")
+    fig.tight_layout()
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_png, dpi=150)
+    print(f"[green]Wrote boxplots[/green] to {out_png}")
+
+
+# Create a perfect baseline run by copying truths into a run file
+@app.command()
+def oracle_run(
+    truths: Path = typer.Option(Path("data/truths.jsonl"), help="Truths JSONL path"),
+    out_dir: Path = typer.Option(Path("runs"), help="Directory to write run file"),
+    run_name: Optional[str] = typer.Option(None, help="Override run filename base"),
+):
+    """Copy truths to a predictions JSONL to validate the evaluator (should score 1.0)."""
+    ensure_dir(out_dir)
+    ts = dt.datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    base = run_name or f"oracle_{ts}"
+    out_path = out_dir / f"{base}.jsonl"
+    n = 0
+    with open(truths, "r", encoding="utf-8") as inf, open(out_path, "w", encoding="utf-8") as outf:
+        for line in inf:
+            if not line.strip():
+                continue
+            obj = json.loads(line)
+            rec = {"id": obj["id"], "fen64": obj["fen64"], "eval_cp_white": obj["eval_cp_white"]}
+            outf.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            n += 1
+    print(f"[green]Wrote oracle predictions[/green] to {out_path} ({n} items)")
+
+# Aliases for underscore command names (Typer defaults to hyphenated names)
+app.command("gen_data")(gen_data)
+app.command("prompt_file")(prompt_file)
+app.command("run_model")(run_model)
+app.command("oracle_run")(oracle_run)
+
+
+def main():
+    app()
+
+
+if __name__ == "__main__":
+    main()

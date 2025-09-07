@@ -24,12 +24,59 @@ class ModelResponse:
     parsed: Optional[Dict[str, Any]]
 
 
-def call_openai(model: str, prompt: str, image_path: Path, timeout: Optional[float] = 60) -> ModelResponse:
+def call_openai(
+    model: str,
+    prompt: str,
+    image_path: Path,
+    timeout: Optional[float] = 60,
+    reasoning_effort: Optional[str] = None,
+) -> ModelResponse:
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is not set.")
     client = OpenAI(api_key=api_key)
     data_url = _image_to_data_url(image_path)
+
+    # If reasoning effort is requested, use the Responses API (supports reasoning)
+    if reasoning_effort:
+        try:
+            resp = client.responses.create(
+                model=model,
+                reasoning={"effort": reasoning_effort},
+                response_format={"type": "json_object"},
+                input=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "input_text", "text": prompt},
+                            {"type": "input_image", "image_url": data_url},
+                        ],
+                    }
+                ],
+                timeout=timeout,
+            )
+            txt = getattr(resp, "output_text", None) or ""
+            return ModelResponse(raw_text=txt, parsed=safe_json_extract(txt))
+        except Exception:
+            # Fallback: try without response_format if provider rejects it
+            resp = client.responses.create(
+                model=model,
+                reasoning={"effort": reasoning_effort},
+                input=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "input_text", "text": prompt},
+                            {"type": "input_image", "image_url": data_url},
+                        ],
+                    }
+                ],
+                timeout=timeout,
+            )
+            txt = getattr(resp, "output_text", None) or ""
+            return ModelResponse(raw_text=txt, parsed=safe_json_extract(txt))
+
+    # Default path: Chat Completions API
     completion = client.chat.completions.create(
         model=model,
         response_format={"type": "json_object"},
