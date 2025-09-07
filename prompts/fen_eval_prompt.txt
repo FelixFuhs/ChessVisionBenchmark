@@ -1,0 +1,12 @@
+You see a single chessboard image. Assume WHITE TO MOVE.
+Return ONLY valid JSON with these keys:
+- "fen64": the first FEN field (piece placement only).
+- "eval_cp_white": one integer centipawn evaluation from White's perspective. Positive means White is better.
+
+Rules:
+- JSON only. No extra text.
+- fen64 must use standard FEN piece letters and digit-run syntax for empty squares.
+- Do not include side-to-move, castling, en passant, halfmove or fullmove fields.
+
+Example:
+{"fen64":"rnbqkbnr/pp1ppppp/2p5/8/8/8/PPPPPPPP/RNBQKBNR","eval_cp_white":-15}

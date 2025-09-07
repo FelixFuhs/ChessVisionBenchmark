@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Env and secrets
+.env
+
+# Downloads / binaries
+bin/
+
+# Generated data and runs (keep truths by default)
+data/images/
+runs/
+!runs/.gitkeep
+
+# OS files
+.DS_Store
+Thumbs.db
