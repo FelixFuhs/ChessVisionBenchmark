@@ -390,7 +390,7 @@ python -m chess_llm_bench evaluate --truths data/truths.jsonl --preds runs/oracl
 3) One-shot bench with a model (free example):
 
 ```
-python -m chess_llm_bench bench --provider openrouter --model "qwen/qwen2.5-vl-32b-instruct:free" --truths data/truths.jsonl --prompt-path prompts/fen_eval_prompt.txt --out-dir runs --leaderboard-csv runs/leaderboard.csv
+python -m chess_llm_bench bench --provider openrouter --model "qwen/qwen2.5-vl-32b-instruct:free" --truths data/truths.jsonl --prompt-path prompts/fen_eval_prompt.txt --out-dir runs --leaderboard-csv runs/leaderboard.csv --sleep-ms 800
 ```
 
 4) Plot the leaderboard:
@@ -423,6 +423,7 @@ Rendering note: Images use Unicode chess glyphs from a system font. On Windows, 
 - Rate limits: If you see HTTP 429 errors, the runner retries with backoff. Tune via `.env`:
   - `OPENROUTER_MAX_RETRIES=3`
   - `OPENROUTER_RETRY_BASE=2.0`
+  - Add `--sleep-ms 800` (or higher) to space requests when using free tiers.
   - Use `--max-items` for quick/cheap tests.
 - Anthropic/Gemini: not wired-in in v0 of this code; can be added following the same pattern used for OpenAI/OpenRouter.
 

@@ -2,7 +2,7 @@ import datetime as dt
 import json
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Annotated
 
 import chess
 import time
@@ -85,7 +85,8 @@ def run_model(
     run_name: Optional[str] = typer.Option(None, help="Override run filename base"),
     request_timeout: int = typer.Option(120, help="Provider request timeout (seconds)"),
     max_items: Optional[int] = typer.Option(None, help="Limit to first N items"),
-    sleep_ms: int = typer.Option(0, help="Sleep between requests (ms), helps with rate limits"),
+    # Use Annotated so the Python default is an int when called programmatically
+    sleep_ms: Annotated[int, typer.Option(help="Sleep between requests (ms), helps with rate limits")]= 0,
 ):
     """Run a vision-capable model over images and save JSONL predictions."""
     load_dotenv(override=True)
@@ -164,6 +165,7 @@ def bench(
     max_items: Optional[int] = typer.Option(None, help="Limit to first N items"),
     leaderboard_csv: Path = typer.Option(Path("runs/leaderboard.csv"), help="Append results here"),
     bootstrap: int = typer.Option(0, help="Bootstrap samples for CI (0 to skip)"),
+    sleep_ms: int = typer.Option(0, help="Sleep between provider requests (ms), helps with rate limits"),
 ):
     """Run a model then evaluate and append to leaderboard.csv."""
     # 1) Run model
@@ -176,6 +178,7 @@ def bench(
         run_name=run_name,
         request_timeout=request_timeout,
         max_items=max_items,
+        sleep_ms=sleep_ms,
     )
     # Find latest run file in out_dir
     preds_list = sorted(out_dir.glob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
