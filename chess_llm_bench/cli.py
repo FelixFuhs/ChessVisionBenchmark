@@ -120,13 +120,16 @@ def run_model(
                 else:
                     raise typer.BadParameter("provider must be 'openai' or 'openrouter'")
                 parsed = resp.parsed or {}
+                status = "ok"
             except Exception as e:
                 print(f"[red]Error processing id={obj['id']}[/red]: {e}")
                 parsed = {}
+                status = "infra_error"
             rec = {
                 "id": obj["id"],
                 "fen64": parsed.get("fen64"),
                 "eval_cp_white": parsed.get("eval_cp_white"),
+                "status": status,
             }
             outf.write(json.dumps(rec, ensure_ascii=False) + "\n")
             print(f"Processed image id={obj['id']} -> {rec}")
@@ -197,6 +200,21 @@ def bench(
     n = len(details)
     n_fen_ok = sum(1 for d in details if d.fen_ok)
     n_eval_ok = sum(1 for d in details if d.eval_ok)
+    # Count infrastructure/API errors from the predictions file (if it has 'status')
+    n_infra_err = 0
+    try:
+        with open(latest, "r", encoding="utf-8") as _pf:
+            for _line in _pf:
+                if not _line.strip():
+                    continue
+                try:
+                    _obj = json.loads(_line)
+                except Exception:
+                    continue
+                if _obj.get("status") == "infra_error":
+                    n_infra_err += 1
+    except Exception:
+        pass
     import datetime as _dt
 
     with open(leaderboard_csv, "a", encoding="utf-8") as f:
@@ -227,7 +245,10 @@ def bench(
         print(f"Composite 95% CI (bootstrap {bootstrap}): [{lo:.3f}, {hi:.3f}]")
 
     # 5) Print results table like `evaluate`
-    print(f"Coverage: FEN ok {n_fen_ok}/{n}, Eval ok {n_eval_ok}/{n}")
+    cov_line = f"Coverage: FEN ok {n_fen_ok}/{n}, Eval ok {n_eval_ok}/{n}"
+    if n_infra_err:
+        cov_line += f" (API errors: {n_infra_err})"
+    print(cov_line)
     table = Table(title="Results", show_header=True, header_style="bold magenta")
     table.add_column("Metric")
     table.add_column("Value")
@@ -252,6 +273,7 @@ def plot(
     out_png: Path = typer.Option(Path("runs/leaderboard.png"), help="Output plot image"),
     bootstrap: int = typer.Option(0, help="Bootstrap samples per run for CI (0 to skip)"),
     style: str = typer.Option("seaborn-v0_8-darkgrid", help="Matplotlib style (e.g., 'ggplot')"),
+    label_mode: str = typer.Option("coverage", help="Y-labels: 'total', 'valid', or 'coverage'"),
 ):
     """Render a simple bar chart of Composite scores across runs.
 
@@ -283,8 +305,96 @@ def plot(
             full = full.split("/", 1)[1]
         return full
 
+    # Coverage-aware labels: n_valid (both tasks) over total n for each run
+    def _cov_label(row):
+        prov = row.get('provider', '')
+        m = short_model(row.get('model', ''))
+        try:
+            n = int(row.get('n', '0'))
+        except Exception:
+            n = 0
+        try:
+            n_f = int(row.get('n_valid_fen', '0'))
+            n_e = int(row.get('n_valid_eval', '0'))
+            cov = min(n_f, n_e) if n and (n_f or n_e) else None
+        except Exception:
+            cov = None
+        if cov is not None and n:
+            return f"{prov} • {m} (n={cov}/{n})"
+        return f"{prov} • {m} (n={n})"
+    labels_cov = [_cov_label(row) for row in rows]
+    # Rebuild labels based on requested label_mode; defaults to coverage
+    def _label(row):
+        prov = row.get('provider', '')
+        m = short_model(row.get('model', ''))
+        try:
+            n = int(row.get('n', '0'))
+        except Exception:
+            n = 0
+        try:
+            n_f = int(row.get('n_valid_fen', '0'))
+            n_e = int(row.get('n_valid_eval', '0'))
+            n_valid = min(n_f, n_e)
+        except Exception:
+            n_valid = None
+        mode = (label_mode or 'coverage').lower()
+        if mode == 'valid' and n_valid is not None:
+            return f"{prov} | {m} (n={n_valid})"
+        if mode == 'coverage' and n_valid is not None and n:
+            return f"{prov} | {m} (n={n_valid}/{n})"
+        return f"{prov} | {m} (n={n})"
+    cov_labels = [_label(row) for row in rows]
+
     labels = [f"{row['provider']} • {short_model(row['model'])} (n={row['n']})" for row in rows]
     composites = [float(row["composite"]) for row in rows]
+    # Coverage-aware labels: show n_valid (both tasks) over total n
+    def _cov_label(row):
+        prov = row.get('provider', '')
+        m = short_model(row.get('model', ''))
+        try:
+            n = int(row.get('n', '0'))
+        except Exception:
+            n = 0
+        try:
+            n_f = int(row.get('n_valid_fen', '0'))
+            n_e = int(row.get('n_valid_eval', '0'))
+            cov = min(n_f, n_e) if n and (n_f or n_e) else None
+        except Exception:
+            cov = None
+        if cov is not None and n:
+            return f"{prov} • {m} (n={cov}/{n})"
+        return f"{prov} • {m} (n={n})"
+    cov_labels = [_cov_label(row) for row in rows]
+    # Ensure coverage labels work even if CSV lacks coverage fields by recomputing
+    def _cov_label_dyn(row):
+        prov = row.get('provider', '')
+        # Short model name
+        m = short_model(row.get('model', ''))
+        # total n
+        try:
+            n = int(row.get('n', '0'))
+        except Exception:
+            n = 0
+        n_f = row.get('n_valid_fen')
+        n_e = row.get('n_valid_eval')
+        try:
+            n_f = int(n_f) if n_f is not None else None
+            n_e = int(n_e) if n_e is not None else None
+        except Exception:
+            n_f, n_e = None, None
+        if (n_f is None or n_e is None) and row.get('dataset') and row.get('run_file'):
+            try:
+                from .metrics import evaluate_run_details as _erd
+                _, _details = _erd(Path(row['dataset']), Path(row['run_file']))
+                n_f = sum(1 for d in _details if d.fen_ok)
+                n_e = sum(1 for d in _details if d.eval_ok)
+            except Exception:
+                n_f, n_e = None, None
+        cov = min(n_f, n_e) if n and (n_f is not None and n_e is not None) else None
+        if cov is not None and n:
+            return f"{prov} • {m} (n={cov}/{n})"
+        return f"{prov} • {m} (n={n})"
+    cov_labels = [_cov_label_dyn(row) for row in rows]
     xerr = None
 
     if bootstrap > 0:
@@ -315,12 +425,12 @@ def plot(
         plt.style.use(style)
     except Exception:
         plt.style.use("ggplot")
-    height = max(5, 0.6 * len(labels) + 1)
+    height = max(5, 0.6 * len(labels_cov) + 1)
     plt.figure(figsize=(9, height))
     colors = plt.get_cmap("tab20")(range(len(labels)))
     y = list(range(len(labels)))
     bars = plt.barh(y, composites, xerr=xerr, capsize=5, color=colors)
-    plt.yticks(y, labels)
+    plt.yticks(y, cov_labels)
     plt.xlabel("Composite Score")
     plt.xlim(0, 1.0)
     plt.title("Chess LLM Mini-Benchmark — Leaderboard")
@@ -329,6 +439,11 @@ def plot(
         val = composites[i]
         plt.text(b.get_width() + 0.01, b.get_y() + b.get_height()/2, f"{val:.3f}", va="center")
     out_png.parent.mkdir(parents=True, exist_ok=True)
+    # Ensure ASCII-friendly title regardless of earlier title call
+    try:
+        plt.gca().set_title("Chess LLM Mini-Benchmark - Leaderboard")
+    except Exception:
+        pass
     plt.tight_layout()
     plt.savefig(out_png, dpi=150)
     print(f"[green]Wrote plot[/green] to {out_png}")
@@ -339,6 +454,7 @@ def plot_box(
     leaderboard_csv: Path = typer.Option(Path("runs/leaderboard.csv"), help="Leaderboard CSV"),
     out_png: Path = typer.Option(Path("runs/leaderboard_box.png"), help="Output boxplot image"),
     style: str = typer.Option("seaborn-v0_8-darkgrid", help="Matplotlib style (e.g., 'ggplot')"),
+    label_mode: str = typer.Option("coverage", help="Y-labels: 'total', 'valid', or 'coverage'"),
 ):
     """Boxplots of per-run item metrics (Acc64 and abs eval error).
 
@@ -373,6 +489,27 @@ def plot_box(
 
     labels = [f"{row['provider']} • {short_model(row['model'])} (n={row['n']})" for row in rows]
     from .metrics import evaluate_run_details as _erd
+    # Override labels to reflect requested label mode (valid-only, coverage, total)
+    def _label(row):
+        prov = row.get('provider', '')
+        m = short_model(row.get('model', ''))
+        try:
+            n = int(row.get('n', '0'))
+        except Exception:
+            n = 0
+        try:
+            n_f = int(row.get('n_valid_fen', '0'))
+            n_e = int(row.get('n_valid_eval', '0'))
+            n_valid = min(n_f, n_e)
+        except Exception:
+            n_valid = None
+        mode = (label_mode or 'coverage').lower()
+        if mode == 'valid' and n_valid is not None:
+            return f"{prov} | {m} (n={n_valid})"
+        if mode == 'coverage' and n_valid is not None and n:
+            return f"{prov} | {m} (n={n_valid}/{n})"
+        return f"{prov} | {m} (n={n})"
+    labels = [_label(row) for row in rows]
     acc_lists = []
     err_lists = []
     for row in rows:
