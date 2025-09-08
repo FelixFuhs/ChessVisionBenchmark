@@ -6,10 +6,12 @@ Results Artifacts
   - leaderboard.csv: Rolling leaderboard with one row per run. Columns: timestamp, provider, model, dataset, n, acc64, hamming, mae_cp, composite, run_file, n_valid_fen, n_valid_eval.
   - leaderboard.png: Bar chart of Composite scores per run (sorted ascending). Labels include coverage by default (n_valid/n), and optional 95% bootstrap CI if enabled.
   - leaderboard_box.png: Box plots showing per‑item distributions for Acc64 and abs eval error (centipawns) for each run.
+  - leaderboard_acc.png: Bar chart of Acc64 per run (sorted ascending), same style as the composite chart.
 
 - How To Regenerate:
   - Plot bars: python -m chess_llm_bench.cli plot
   - Plot box plots: python -m chess_llm_bench.cli plot-box
+  - Plot Acc64 only: python -m chess_llm_bench.cli plot-acc
   - Both commands default to reading results/leaderboard.csv and writing images into results/.
   - To customize paths: add --leaderboard-csv and --out-png.
 
@@ -40,4 +42,3 @@ Results Artifacts
   - run_file: Path to the predictions JSONL that was evaluated.
   - n_valid_fen: Count of items with valid FEN predictions.
   - n_valid_eval: Count of items with valid numeric evals.
-

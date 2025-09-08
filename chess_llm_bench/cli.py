@@ -569,6 +569,123 @@ def plot_box(
     print(f"[green]Wrote boxplots[/green] to {out_png}")
 
 
+# Acc64-only leaderboard plot (same style as composite)
+@app.command()
+def plot_acc(
+    leaderboard_csv: Path = typer.Option(Path("results/leaderboard.csv"), help="Leaderboard CSV"),
+    out_png: Path = typer.Option(Path("results/leaderboard_acc.png"), help="Output plot image (Acc64)"),
+    bootstrap: int = typer.Option(0, help="Bootstrap samples per run for CI (0 to skip)"),
+    style: str = typer.Option("seaborn-v0_8-darkgrid", help="Matplotlib style (e.g., 'ggplot')"),
+    label_mode: str = typer.Option("coverage", help="Y-labels: 'total', 'valid', or 'coverage'"),
+):
+    """Render a bar chart of Acc64 across runs (like composite plot, but accuracy only).
+
+    If --bootstrap > 0, computes 95% bootstrap CI per run using stored run files.
+    """
+    import csv
+    try:
+        import matplotlib.pyplot as plt
+    except Exception:
+        print("[red]matplotlib not installed. Install with:[/red] pip install matplotlib")
+        raise typer.Exit(code=1)
+
+    rows = []
+    with open(leaderboard_csv, "r", encoding="utf-8") as f:
+        r = csv.DictReader(f)
+        for row in r:
+            rows.append(row)
+    if not rows:
+        print("[yellow]No rows found in leaderboard.[/yellow]")
+        raise typer.Exit()
+    # Sort ascending by Acc64 so lowest is left, highest right
+    try:
+        rows.sort(key=lambda x: float(x.get("acc64", 0.0)))
+    except Exception:
+        pass
+
+    def short_model(full: str) -> str:
+        if "/" in full:
+            full = full.split("/", 1)[1]
+        return full
+
+    def _label(row):
+        prov = row.get('provider', '')
+        m = short_model(row.get('model', ''))
+        try:
+            n = int(row.get('n', '0'))
+        except Exception:
+            n = 0
+        try:
+            n_f = int(row.get('n_valid_fen', '0'))
+            n_e = int(row.get('n_valid_eval', '0'))
+            n_valid = min(n_f, n_e)
+        except Exception:
+            n_valid = None
+        mode = (label_mode or 'coverage').lower()
+        if mode == 'valid' and n_valid is not None:
+            return f"{prov} | {m} (n={n_valid})"
+        if mode == 'coverage' and n_valid is not None and n:
+            return f"{prov} | {m} (n={n_valid}/{n})"
+        return f"{prov} | {m} (n={n})"
+
+    cov_labels = [_label(row) for row in rows]
+    accs = []
+    for row in rows:
+        try:
+            accs.append(float(row.get("acc64", 0.0)))
+        except Exception:
+            accs.append(0.0)
+
+    xerr = None
+    if bootstrap > 0:
+        lows, highs = [], []
+        for row in rows:
+            from .metrics import evaluate_run_details as _erd
+            _, details = _erd(Path(row["dataset"]), Path(row["run_file"]))
+            import random
+            n = len(details)
+            if n <= 1:
+                # Not enough items to bootstrap meaningfully
+                lows.append(accs[len(lows)])
+                highs.append(accs[len(highs)])
+                continue
+            acc_items = [d.acc64 for d in details]
+            means = []
+            for _ in range(bootstrap):
+                idxs = [random.randrange(n) for _ in range(n)]
+                means.append(sum(acc_items[i] for i in idxs) / n)
+            means.sort()
+            lo = means[int(0.025 * bootstrap)]
+            hi = means[int(0.975 * bootstrap)]
+            lows.append(lo)
+            highs.append(hi)
+        xerr = [[c - l for c, l in zip(accs, lows)], [h - c for c, h in zip(accs, highs)]]
+
+    try:
+        plt.style.use(style)
+    except Exception:
+        plt.style.use("ggplot")
+    height = max(5, 0.6 * len(cov_labels) + 1)
+    plt.figure(figsize=(9, height))
+    colors = plt.get_cmap("tab20")(range(len(cov_labels)))
+    y = list(range(len(cov_labels)))
+    bars = plt.barh(y, accs, xerr=xerr, capsize=5, color=colors)
+    plt.yticks(y, cov_labels)
+    plt.xlabel("Acc64")
+    plt.xlim(0, 1.0)
+    plt.title("Chess LLM Mini-Benchmark — Acc64 Leaderboard")
+    for i, b in enumerate(bars):
+        val = accs[i]
+        plt.text(b.get_width() + 0.01, b.get_y() + b.get_height()/2, f"{val:.3f}", va="center")
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        plt.gca().set_title("Chess LLM Mini-Benchmark - Acc64 Leaderboard")
+    except Exception:
+        pass
+    plt.tight_layout()
+    plt.savefig(out_png, dpi=150)
+    print(f"[green]Wrote Acc64 plot[/green] to {out_png}")
+
 # Create a perfect baseline run by copying truths into a run file
 @app.command()
 def oracle_run(
