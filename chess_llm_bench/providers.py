@@ -40,6 +40,9 @@ def call_openai(
     # If reasoning effort is requested, use the Responses API (supports reasoning)
     if reasoning_effort:
         try:
+            _kwargs = {}
+            if timeout:
+                _kwargs["timeout"] = timeout
             resp = client.responses.create(
                 model=model,
                 reasoning={"effort": reasoning_effort},
@@ -53,12 +56,15 @@ def call_openai(
                         ],
                     }
                 ],
-                timeout=timeout,
+                **_kwargs,
             )
             txt = getattr(resp, "output_text", None) or ""
             return ModelResponse(raw_text=txt, parsed=safe_json_extract(txt))
         except Exception:
             # Fallback: try without response_format if provider rejects it
+            _kwargs = {}
+            if timeout:
+                _kwargs["timeout"] = timeout
             resp = client.responses.create(
                 model=model,
                 reasoning={"effort": reasoning_effort},
@@ -71,12 +77,15 @@ def call_openai(
                         ],
                     }
                 ],
-                timeout=timeout,
+                **_kwargs,
             )
             txt = getattr(resp, "output_text", None) or ""
             return ModelResponse(raw_text=txt, parsed=safe_json_extract(txt))
 
     # Default path: Chat Completions API
+    _kwargs = {}
+    if timeout:
+        _kwargs["timeout"] = timeout
     completion = client.chat.completions.create(
         model=model,
         response_format={"type": "json_object"},
@@ -89,7 +98,7 @@ def call_openai(
                 ],
             }
         ],
-        timeout=timeout,
+        **_kwargs,
     )
     txt = completion.choices[0].message.content or ""
     return ModelResponse(raw_text=txt, parsed=safe_json_extract(txt))

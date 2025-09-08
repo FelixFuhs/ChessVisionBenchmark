@@ -83,7 +83,10 @@ def run_model(
     ),
     out_dir: Path = typer.Option(Path("runs"), help="Directory to write run file"),
     run_name: Optional[str] = typer.Option(None, help="Override run filename base"),
-    request_timeout: int = typer.Option(120, help="Provider request timeout (seconds)"),
+    request_timeout: int = typer.Option(
+        0,
+        help="Provider request timeout in seconds (0 = no client timeout)",
+    ),
     max_items: Optional[int] = typer.Option(None, help="Limit to first N items"),
     # Use Annotated so the Python default is an int when called programmatically
     sleep_ms: Annotated[int, typer.Option(help="Sleep between requests (ms), helps with rate limits")]= 0,
@@ -117,16 +120,23 @@ def run_model(
         for obj in items:
             img = Path(obj["image"]) if os.path.isabs(obj["image"]) else Path(obj["image"])  # relative
             try:
+                # Interpret 0 as "no client timeout"
+                _timeout = None if (request_timeout is None or request_timeout == 0) else request_timeout
                 if provider.lower() == "openai":
                     resp = call_openai(
                         model=model,
                         prompt=prompt,
                         image_path=img,
-                        timeout=request_timeout,
+                        timeout=_timeout,
                         reasoning_effort=reasoning_effort,
                     )
                 elif provider.lower() == "openrouter":
-                    resp = call_openrouter(model=model, prompt=prompt, image_path=img, timeout=request_timeout)
+                    resp = call_openrouter(
+                        model=model,
+                        prompt=prompt,
+                        image_path=img,
+                        timeout=_timeout,
+                    )
                 else:
                     raise typer.BadParameter("provider must be 'openai' or 'openrouter'")
                 parsed = resp.parsed or {}
@@ -174,7 +184,9 @@ def bench(
     prompt_path: Path = typer.Option(Path("prompts/fen_eval_prompt.txt"), help="Prompt file path"),
     out_dir: Path = typer.Option(Path("runs"), help="Directory for predictions and leaderboard"),
     run_name: Optional[str] = typer.Option(None, help="Override run filename base"),
-    request_timeout: int = typer.Option(120, help="Request timeout seconds"),
+    request_timeout: int = typer.Option(
+        0, help="Request timeout seconds (0 = no client timeout)"
+    ),
     max_items: Optional[int] = typer.Option(None, help="Limit to first N items"),
     leaderboard_csv: Path = typer.Option(Path("runs/leaderboard.csv"), help="Append results here"),
     bootstrap: int = typer.Option(0, help="Bootstrap samples for CI (0 to skip)"),
