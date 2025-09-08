@@ -6,3 +6,5 @@ timestamp,provider,model,dataset,n,acc64,hamming,mae_cp,composite,run_file
 2025-09-07T21:44:54,openai,gpt-5-nano-2025-08-07 (high),data\truths.jsonl,10,0.621875,24.200000,280.000000,0.651312,runs\openai-gpt-5-nano-2025-08-07_2025-09-07_213553.jsonl,10,10
 2025-09-08T11:36:27,openai,gpt-5-mini-2025-08-07 (high),data\truths.jsonl,10,0.637500,23.200000,418.000000,0.620850,runs\openai-gpt-5-mini-2025-08-07_2025-09-08_104924.jsonl,8,10
 2025-09-08T13:27:21,openai,gpt-5-2025-08-07 (high),data\truths.jsonl,10,0.931250,4.400000,705.500000,0.740225,runs\openai-gpt-5-2025-08-07_2025-09-08_124453.jsonl,10,10
+2025-09-08T13:56:00,openai,gpt-4o-2024-11-20,data\truths.jsonl,10,0.832812,10.700000,183.500000,0.827919,runs\openai-gpt-4o-2024-11-20_2025-09-08_135537.jsonl,10,10
+2025-09-08T13:58:43,openai,gpt-5-chat-latest,data\truths.jsonl,10,0.865625,8.600000,522.500000,0.749187,runs\openai-gpt-5-chat-latest_2025-09-08_135824.jsonl,10,10
