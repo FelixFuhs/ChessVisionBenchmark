@@ -347,16 +347,16 @@ You’ll get a small table with `Acc64`, `Hamming`, `MAE_cp`, and `Composite` sc
 ### 7) One-shot bench (run + eval + leaderboard)
 
 ```
-python -m chess_llm_bench bench --provider openrouter --model "qwen/qwen2.5-vl-32b-instruct:free" --truths data/truths.jsonl --prompt-path prompts/fen_eval_prompt.txt --out-dir runs --leaderboard-csv runs/leaderboard.csv --max-items 10 --bootstrap 0
+python -m chess_llm_bench bench --provider openrouter --model "qwen/qwen2.5-vl-32b-instruct:free" --truths data/truths.jsonl --prompt-path prompts/fen_eval_prompt.txt --out-dir runs --leaderboard-csv results/leaderboard.csv --max-items 10 --bootstrap 0
 ```
 
-- Appends a row to `runs/leaderboard.csv` with metrics and the run file path.
+- Appends a row to `results/leaderboard.csv` with metrics and the run file path.
 - `--max-items` limits dataset size; `--bootstrap` prints a 95% CI for Composite when >0.
 
 ### 8) Plot the leaderboard
 
 ```
-python -m chess_llm_bench plot --leaderboard-csv runs/leaderboard.csv --out-png runs/leaderboard.png --bootstrap 0
+python -m chess_llm_bench plot --leaderboard-csv results/leaderboard.csv --out-png results/leaderboard.png --bootstrap 0
 ```
 
 - Produces a sorted (ascending), horizontal bar chart of Composite scores with readable labels and coverage counts.
@@ -365,7 +365,7 @@ python -m chess_llm_bench plot --leaderboard-csv runs/leaderboard.csv --out-png 
 Boxplots of per-item metrics across runs:
 
 ```
-python -m chess_llm_bench plot-box --leaderboard-csv runs/leaderboard.csv --out-png runs/leaderboard_box.png
+python -m chess_llm_bench plot-box --leaderboard-csv results/leaderboard.csv --out-png results/leaderboard_box.png
 ```
 
 - Left: Acc64 distribution per run; Right: absolute eval error (cp) per run.
@@ -390,13 +390,13 @@ python -m chess_llm_bench evaluate --truths data/truths.jsonl --preds runs/oracl
 3) One-shot bench with a model (free example):
 
 ```
-python -m chess_llm_bench bench --provider openrouter --model "qwen/qwen2.5-vl-32b-instruct:free" --truths data/truths.jsonl --prompt-path prompts/fen_eval_prompt.txt --out-dir runs --leaderboard-csv runs/leaderboard.csv --sleep-ms 800
+python -m chess_llm_bench bench --provider openrouter --model "qwen/qwen2.5-vl-32b-instruct:free" --truths data/truths.jsonl --prompt-path prompts/fen_eval_prompt.txt --out-dir runs --leaderboard-csv results/leaderboard.csv --sleep-ms 800
 ```
 
 4) Plot the leaderboard:
 
 ```
-python -m chess_llm_bench plot --leaderboard-csv runs/leaderboard.csv --out-png runs/leaderboard.png
+python -m chess_llm_bench plot --leaderboard-csv results/leaderboard.csv --out-png results/leaderboard.png
 ```
 
 ---

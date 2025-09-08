@@ -182,13 +182,13 @@ def bench(
     model: str = typer.Option(..., help="Model slug/name for provider"),
     truths: Path = typer.Option(Path("data/truths.jsonl"), help="Truths JSONL path"),
     prompt_path: Path = typer.Option(Path("prompts/fen_eval_prompt.txt"), help="Prompt file path"),
-    out_dir: Path = typer.Option(Path("runs"), help="Directory for predictions and leaderboard"),
+    out_dir: Path = typer.Option(Path("runs"), help="Directory for predictions"),
     run_name: Optional[str] = typer.Option(None, help="Override run filename base"),
     request_timeout: int = typer.Option(
         0, help="Request timeout seconds (0 = no client timeout)"
     ),
     max_items: Optional[int] = typer.Option(None, help="Limit to first N items"),
-    leaderboard_csv: Path = typer.Option(Path("runs/leaderboard.csv"), help="Append results here"),
+    leaderboard_csv: Path = typer.Option(Path("results/leaderboard.csv"), help="Append results here"),
     bootstrap: int = typer.Option(0, help="Bootstrap samples for CI (0 to skip)"),
     sleep_ms: int = typer.Option(0, help="Sleep between provider requests (ms), helps with rate limits"),
     reasoning_effort: Optional[str] = typer.Option(
@@ -301,8 +301,8 @@ def bench(
 
 @app.command()
 def plot(
-    leaderboard_csv: Path = typer.Option(Path("runs/leaderboard.csv"), help="Leaderboard CSV"),
-    out_png: Path = typer.Option(Path("runs/leaderboard.png"), help="Output plot image"),
+    leaderboard_csv: Path = typer.Option(Path("results/leaderboard.csv"), help="Leaderboard CSV"),
+    out_png: Path = typer.Option(Path("results/leaderboard.png"), help="Output plot image"),
     bootstrap: int = typer.Option(0, help="Bootstrap samples per run for CI (0 to skip)"),
     style: str = typer.Option("seaborn-v0_8-darkgrid", help="Matplotlib style (e.g., 'ggplot')"),
     label_mode: str = typer.Option("coverage", help="Y-labels: 'total', 'valid', or 'coverage'"),
@@ -483,8 +483,8 @@ def plot(
 
 @app.command()
 def plot_box(
-    leaderboard_csv: Path = typer.Option(Path("runs/leaderboard.csv"), help="Leaderboard CSV"),
-    out_png: Path = typer.Option(Path("runs/leaderboard_box.png"), help="Output boxplot image"),
+    leaderboard_csv: Path = typer.Option(Path("results/leaderboard.csv"), help="Leaderboard CSV"),
+    out_png: Path = typer.Option(Path("results/leaderboard_box.png"), help="Output boxplot image"),
     style: str = typer.Option("seaborn-v0_8-darkgrid", help="Matplotlib style (e.g., 'ggplot')"),
     label_mode: str = typer.Option("coverage", help="Y-labels: 'total', 'valid', or 'coverage'"),
 ):

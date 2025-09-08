@@ -1,0 +1,8 @@
+timestamp,provider,model,dataset,n,acc64,hamming,mae_cp,composite,run_file
+2025-09-07T19:15:01,openrouter,qwen/qwen2.5-vl-32b-instruct:free,data\truths.jsonl,10,0.565625,27.800000,352.500000,0.590187,runs\openrouter-qwen-qwen2.5-vl-32b-instruct-free_2025-09-07_191433.jsonl
+2025-09-07T19:24:39,openrouter,mistralai/mistral-small-3.2-24b-instruct:free,data\truths.jsonl,10,0.323437,43.300000,355.000000,0.419906,runs\openrouter-mistralai-mistral-small-3.2-24b-instruct-free_2025-09-07_192404.jsonl
+2025-09-07T19:34:23,openrouter,openrouter/sonoma-sky-alpha,data\truths.jsonl,10,0.579688,26.900000,355.000000,0.599281,runs\openrouter-openrouter-sonoma-sky-alpha_2025-09-07_192905.jsonl
+2025-09-07T19:42:17,openrouter,meta-llama/llama-4-scout:free,data\truths.jsonl,10,0.403125,38.200000,355.000000,0.475687,runs\openrouter-meta-llama-llama-4-scout-free_2025-09-07_194051.jsonl
+2025-09-07T21:44:54,openai,gpt-5-nano-2025-08-07 (high),data\truths.jsonl,10,0.621875,24.200000,280.000000,0.651312,runs\openai-gpt-5-nano-2025-08-07_2025-09-07_213553.jsonl,10,10
+2025-09-08T11:36:27,openai,gpt-5-mini-2025-08-07 (high),data\truths.jsonl,10,0.637500,23.200000,418.000000,0.620850,runs\openai-gpt-5-mini-2025-08-07_2025-09-08_104924.jsonl,8,10
+2025-09-08T13:27:21,openai,gpt-5-2025-08-07 (high),data\truths.jsonl,10,0.931250,4.400000,705.500000,0.740225,runs\openai-gpt-5-2025-08-07_2025-09-08_124453.jsonl,10,10
